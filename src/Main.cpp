@@ -1,6 +1,4 @@
 #include <cstdio>
-#include <string>
-#include <cctype>
 // These 4 includes just for the ParseNetworkString function in the iphlpapi.h header
 // TODO: come back and re-implement the ip addr parsing yourself.
 #include <winsock2.h>
@@ -10,6 +8,8 @@
 
 #include "Server/Server.h"
 #include "Client/Client.h"
+
+#pragma comment (lib, "iphlpapi.lib")
 
 #define DEFAULT_PORT 8008 // BOOB HA!
 
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
 	bool bServer = false;
 	bool bClient = false;
 	uint16_t nPort = DEFAULT_PORT;
-	WCHAR* pIpv4Addr = nullptr;
+	const char* p_ipv4Addr = nullptr;
 
 	for (int i = 1; i < argc; ++i)
 	{
@@ -66,17 +66,26 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
+		if (!strcmp(argv[i], "--ipaddress"))
+		{
+			++i;
+			if (i >= argc)
+				PrintUsageAndExit();
+			p_ipv4Addr = argv[i];
+			continue;
+		}
+
 		// Anything else, must be server address to connect to
 		if (bClient)
 		{
-			if (!ParseIPAddrString((WCHAR*)argv[i]))
+			if (!ParseIPAddrString((WCHAR*)p_ipv4Addr))
 			{
 				fprintf(stderr, "Invalid server address '%s'", argv[i]);
 				continue;
 			}
-			else 
+			else
 			{
-				pIpv4Addr = (WCHAR*)argv[i];
+				break;
 			}
 		}
 
@@ -91,12 +100,12 @@ int main(int argc, char* argv[])
 	// Create client and server sockets
 	if (bClient)
 	{
-		Client* client = new Client();
-		client->Run(pIpv4Addr, nPort);
+		Client client(p_ipv4Addr, nPort);
+		client.EnterChat();
 	}
 	else
 	{
-		Server* server = new Server();
-		server->Run((uint16_t)nPort);
+		Server server(nPort); 
+		server.Start();
 	}
 }

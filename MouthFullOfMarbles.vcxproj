@@ -71,19 +71,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)\src;$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)Build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)\src;$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)Build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)\src;$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)Build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)\src;$(ProjectDir)\lib;C:\raylib\raylib\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)Build\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -152,14 +152,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include=".gitignore" />
-    <None Include="bin\GameNetworkingSockets.dll" />
     <None Include="compile_commands.json" />
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="src\sockServer.py" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="bin\GameNetworkingSockets_s.lib" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lib\imgui\imconfig.h" />
@@ -195,12 +191,9 @@
     <ClCompile Include="lib\imgui\imgui_tables.cpp" />
     <ClCompile Include="lib\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\Client\Client.cpp" />
-    <ClCompile Include="src\Crypt.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Network\Sockets.cpp" />
     <ClCompile Include="src\Server\Server.cpp" />
-    <ClCompile Include="src\sock_example.cpp" />
-    <ClCompile Include="src\WebSocket.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

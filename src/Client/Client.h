@@ -1,16 +1,14 @@
 #pragma once
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif 
 
-#include <cctype>
-#include <stdint.h>
-#include <windows.h>
+#include "Network/Sockets.h"
 
+#define MAXMSGBUFSIZE 16384
 
 class Client {
+private:	
+	Socket m_socket;
 public:
-	Client() = default;
-	~Client() = default; // TODO: this needs to clean up correctly, including threads, buffers etc..
-	void Run(WCHAR* pIpv4Addr, uint16_t nPort);
-};
+	Client(const char* serverIp, int port);
+	~Client() = default;
+	void EnterChat();
+}; 

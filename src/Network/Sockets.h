@@ -12,41 +12,27 @@
 #include <string>
 // Need to link with Ws2_32.lib, Mswsock.lib, and Advapi32.lib
 #pragma comment (lib, "Ws2_32.lib")
-#pragma comment (lib, "Mswsock.lib")
-#pragma comment (lib, "AdvApi32.lib")
 
 #define BUFFLENGTH 16384
 
 class Socket{
 public:
-	// This creates the one predefined instance of this class. This is the singleton design pattern
 	Socket();
+	Socket(SOCKET establishedSocket);
 	~Socket();
-	bool StartListener( std::string sPort);
-	bool ConnectToHost(std::string p_targetIp, std::string n_targetPort);
-	bool AcceptIncomingConnection();
-	bool Send(char sendBuffer[], int sendBufferLength);
-	void Receive(char receiveBuffer[], int bufferLength);
-	void Flush();
-	bool Disconnect();
-private:
+	void GetErrorMessage(DWORD dw_error);
 	bool WSAInit();
-	void GetErrorMessage(DWORD dw_error, char** pnc_msg);
-	bool ServerGetAddressInfo(std::string sPort, struct addrinfo* addrInfoResult);
-	bool ClientGetAddressInfo(std::string ipAddr, std::string sPort, struct addrinfo* addrInfoResult);
-	bool CreateSocket(addrinfo* addrInfo);
-	bool BindSocket(addrinfo* addrInfo);
-	bool ListenOnSocket();
-	int m_funcResult = 0;
-	static bool wsaInitialised;
-	WSADATA m_wsaData;
+	void FindListenSocket(std::string port);
+	void CreateSocket();
+	Socket AcceptConnection();
+	void ConnectToRemoteHost(const char* targetIpAddr, int port);
+	void SendMessage(const char* message);
+	int Receive(char* msgBuffer, int msgBufferSize);
+	SOCKET GetSocket();
+
+private:
 	SOCKET m_socket = INVALID_SOCKET;
-	struct addrinfo* m_pResult = NULL;
-	struct addrinfo* m_pPtr = NULL;
-	struct addrinfo m_hints;
-	char m_bRecvBuffer[BUFFLENGTH];
-	
-
-
-
+	sockaddr_in m_addr = { 0 };
+	WSADATA m_wsaData = { 0 };
+	bool wsaInitialised = false;
 };

@@ -1,45 +1,33 @@
 #pragma once
 #include <stdint.h>
-#include <map>
+#include <vector>
 
 #include "Network/Sockets.h" 
 
-#define BUFLEN 16384
-#define MAXTHREADS 50
+#define BUFSIZE 16384
+#define MAXCONNECTIONS 20
+
+enum e_state{
+	STATE_FREE,
+	STATE_NEW,
+	STATE_CONNECTED,
+	STATE_DISCONNECTED
+};
 
 class Server {
 public:
-	// Singleton structure to ensure only one ever exists
-	static Server* const server;
-	bool Run();
+	Server() = default;
+	~Server();
+	void HandleClient(Socket clientSocket);
+	void Run(int port);
+
 
 private:
+	Socket* m_listenSocket = new Socket();
+	WSAPOLLFD* m_connectionStates;
+	int m_fdCount = 0;
+	int m_fdSize = 20;
 
-	int Receive();
-	struct Client_t
-	{
-		std::string m_sClientAlias;
-	};
-	struct ConnInfo_t
-	{
-		HANDLE h_thread;
-		SOCKET fileDescriptor;
+	void InitClientStates(int start, int end);
+};
 
-	};
-
-	Server(std::string listenAddr, std::string listenPort);
-	char m_recBuffer[BUFLEN];
-	int m_nRecBufLength = BUFLEN;
-	std::map< ConnInfo_t, Client_t > m_clientMap;
-	Socket m_socket;
-	SOCKET m_listenFd;
-	SOCKET m_newFd;
-	std::string m_listenAddr;
-	std::string m_listenPort;
-	DWORD dw_threadStatus;
-	struct ConnInfo_t m_threads[MAXTHREADS];
-
-
-
-
-};		
