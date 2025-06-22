@@ -1,0 +1,49 @@
+{
+    "version":"2.0.0",
+    "tasks": [
+        {
+	        "label": "Build Solution: Debug",
+	        "type": "shell",
+	        "command": "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/current/Bin/MSBuild.exe",
+	        "args": [
+	        	"${workspaceFolder}/MouthFullOfMarbles.sln",
+	        	"/p:Configuration=Debug",
+	        	"/p:platform=x64",
+	        ],
+	        "group": {
+	        	"kind": "build",
+	        	"isDefault": true // instaead of the release version
+	        },
+	        "presentation": {
+	        	"reveal": "always",
+	        	"echo": true,
+                "focus": false,
+                "panel": "shared" 
+	        },
+	        "problemMatcher": "$msCompile", // matches output to MSBuild so that errors/warnings are mapped to correct files in the problems tab
+	        
+        },
+		{
+	        "label": "Build Solution: Release",
+	        "type": "shell",
+	        "command": "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/current/Bin/MSBuild.exe",
+	        "args": [
+	        	"${workspaceFolder}/<solution_name>.sln",
+	        	"/p:Configuration=Release",
+	        	"/p:platform=x64",
+	        ],
+	        "group": {
+	        	"kind": "build",
+	        	"isDefault": false 
+	        },
+	        "presentation": {
+	        	"reveal": "always",
+	        	"echo": true,
+                "focus": false,
+                "panel": "shared" 
+	        },
+	        "problemMatcher": "$msCompile", // matches output to MSBuild so that errors/warnings are mapped to correct files in the problems tab
+	        
+        }
+    ]
+}

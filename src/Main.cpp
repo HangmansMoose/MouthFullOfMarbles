@@ -1,6 +1,9 @@
-#include <cstdio>
 // These 4 includes just for the ParseNetworkString function in the iphlpapi.h header
 // TODO: come back and re-implement the ip addr parsing yourself.
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <cstdio>
 #include <winsock2.h>
 #include <ws2ipdef.h>
 #include <WinDNS.h>
@@ -8,11 +11,13 @@
 
 #include "Server/Server.h"
 #include "Client/Client.h"
+#include "GUI/GUI.h"
 
 #pragma comment (lib, "iphlpapi.lib")
 
-#define DEFAULT_PORT 8008 // BOOB HA!
+#define DEFAULT_PORT 8008
 
+// OpenGL device context
 
 void PrintUsageAndExit(int rc = 1)
 {
@@ -23,6 +28,25 @@ void PrintUsageAndExit(int rc = 1)
 	
 	fflush(stdout);
 	exit(-1);
+}
+
+// Convert the passed string to lower in place
+void ArgsToLower(int argc, char* argv[])
+{
+	// HACK: This will only work for ASCII, unicode characters will break it.
+	// There are other more involved options of course, but I just wanted to get
+	// this up and running and have no intention of using cyrillic or emojis
+	for (int i = 1; i < argc; i++)
+	{
+		std::string arg = argv[i];
+		for (char& c : arg)
+		{
+			if (c >= 'A' && c <= 'Z')
+			{
+				c += 32;
+			}
+		}
+	}
 }
 
 bool ParseIPAddrString(WCHAR* userInputIPv4)
@@ -37,7 +61,8 @@ int main(int argc, char* argv[])
 	bool bClient = false;
 	uint16_t nPort = DEFAULT_PORT;
 	const char* p_ipv4Addr = nullptr;
-
+	ArgsToLower(argc, argv);
+	
 	for (int i = 1; i < argc; ++i)
 	{
 		if (!bClient && !bServer)
@@ -101,11 +126,13 @@ int main(int argc, char* argv[])
 	if (bClient)
 	{
 		Client client(p_ipv4Addr, nPort);
-		client.EnterChat();
+		ChatInterfaceRun();
+		client.Chat();
 	}
 	else
 	{
+		
 		Server server(nPort); 
-		server.Start();
+		server.Run();
 	}
 }

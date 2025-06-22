@@ -16,10 +16,10 @@ enum e_state{
 
 class Server {
 public:
-	Server() = default;
+	Server(int port);
 	~Server();
 	void HandleClient(Socket clientSocket);
-	void Run(int port);
+	void Run();
 
 
 private:
@@ -27,7 +27,13 @@ private:
 	WSAPOLLFD* m_connectionStates;
 	int m_fdCount = 0;
 	int m_fdSize = 20;
+	int m_listenPort;
+	bool m_running = false;
 
 	void InitClientStates(int start, int end);
+	void PollClients();
+	void SendToAllClients();
+	bool AddNewClientFD(SOCKET newClient);
+	bool RemoveClientFD(SOCKET fdToRemove);
 };
-
+ 

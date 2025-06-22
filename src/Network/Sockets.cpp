@@ -1,7 +1,9 @@
-#include "Sockets.h"
-#include "winbase.h"
-#include "winsock2.h"
+//#include <winbase.h>
+#include <winsock2.h>
+#include <WS2tcpip.h>
 #include <cstdlib>
+#include <string>
+#include "Sockets.h"
 
 // NOTE: Remember to keep this only to socket specific actions. Everything else like data management and threading
 // can be done by the class that needs to do it.
@@ -37,14 +39,14 @@ Socket::~Socket()
 
 void Socket::GetErrorMessage(DWORD dw_error)
 {
-	LPTSTR *pnc_msg = NULL;
+	LPSTR *pnc_msg = NULL;
 	DWORD dw_flags;
 
 	dw_flags = FORMAT_MESSAGE_ALLOCATE_BUFFER
 			  |FORMAT_MESSAGE_FROM_SYSTEM
 			  |FORMAT_MESSAGE_IGNORE_INSERTS;
 
-	FormatMessage(dw_flags, NULL, dw_error, LANG_SYSTEM_DEFAULT, *pnc_msg, 0, NULL);
+	FormatMessageA(dw_flags, NULL, dw_error, LANG_SYSTEM_DEFAULT, *pnc_msg, 0, NULL);
 
 	fprintf(stderr, "Failed with code %ld\n", dw_error);
 	fprintf(stderr, "%s\n", *pnc_msg);
@@ -91,6 +93,7 @@ void Socket::CreateSocket()
 		GetErrorMessage(dw_error);
 		exit(EXIT_FAILURE);
 	}
+
 }
 
 
@@ -163,23 +166,42 @@ void Socket::FindListenSocket(std::string port)
 
 }
 
-
 Socket Socket::AcceptConnection() 
 {
-    sockaddr_in clientAddr;
-    int clientSize = sizeof(clientAddr);
-    SOCKET clientSocket = accept(m_socket, (sockaddr*)&clientAddr, &clientSize);
-    if (clientSocket == INVALID_SOCKET) {
+	sockaddr_in newClientAddr;
+    int clientSize = sizeof(newClientAddr);
+    SOCKET newSocket = accept(m_socket, (sockaddr*)&newClientAddr, &clientSize);
+    if (newSocket == INVALID_SOCKET) {
         printf("Accept failed\n");
 	    DWORD dw_error = WSAGetLastError();
 	    GetErrorMessage(dw_error);
     }
 
-	Socket newSocket(clientSocket);
-    return newSocket; 
+	Socket newClientSock;
+	newClientSock.m_socket = newSocket;
+	newClientSock.m_addr = newClientAddr;
+    return newClientSock; 
 }
 
-void Socket::ConnectToRemoteHost(const char* serverIP, int port) {
+void Socket::ConnectToRemoteHost(const char* serverIP, int port) 
+{
+	// This needs to be TLS so we need to start by initialiasing SCHANNEL
+	SCHANNEL_CRED cred = 
+	{
+		.dwVersion = SCHANNEL_CRED_VERSION,
+		.grbitEnabledProtocols = SP_PROT_TLS1_2,  // allow only TLS v1.2	
+		.dwFlags = SCH_USE_STRONG_CRYPTO          // use only strong crypto alogorithms
+				 | SCH_CRED_AUTO_CRED_VALIDATION  // automatically validate server certificate
+				 | SCH_CRED_NO_DEFAULT_CREDS,     // no client certificate authentication
+	};
+	
+	if (AcquireCredentialsHandle(NULL, (wchar_t*)UNISP_NAME, SECPKG_CRED_OUTBOUND, NULL, &cred, NULL, NULL, &m_credHandle, NULL) != SEC_E_OK)
+	{
+		printf("Could not acquire credentials handle\n");
+		// TODO: if this fails potentially should just give a warning and ask if the user wants to connect unencrypted.
+		exit(EXIT_FAILURE);
+	}
+
     m_addr.sin_family = AF_INET;
     m_addr.sin_port = htons(port);
     inet_pton(AF_INET, serverIP, &m_addr.sin_addr);
@@ -192,260 +214,57 @@ void Socket::ConnectToRemoteHost(const char* serverIP, int port) {
     }
 }
 
-void Socket::SendMessage(const char* message) {
-    send(m_socket, message, strlen(message), 0);
+bool Socket::Send(SOCKET destinationFd, const char* message) {
+    int result = send(destinationFd, message, strlen(message), 0);
+
+	if (result == SOCKET_ERROR)
+	{
+		DWORD dw_error = WSAGetLastError();
+		GetErrorMessage(dw_error);
+		printf("Message failed to send to FD %lld\n", destinationFd);
+		return false;
+	}
+	return true;
 }
 
-int Socket::Receive(char* buffer, int bufferSize) {
+bool Socket::Receive(SOCKET senderFd, char* buffer, int bufferSize) {
     memset(buffer, 0, bufferSize);
-    return recv(m_socket, buffer, bufferSize, 0);
+	int bytesReceived = recv(m_socket, buffer, bufferSize, 0);
+
+	if (bytesReceived == SOCKET_ERROR || bytesReceived == 0)
+	{
+	   if (bytesReceived == 0) // Connection closed
+	   {
+			fprintf(stderr,"socket %lld hung up\n",senderFd);
+			return false;
+	   }
+	   else
+	   {
+			printf("Error attempting to receive from FD %lld\n", senderFd);
+			DWORD dw_error = WSAGetLastError();
+			GetErrorMessage(dw_error);
+			return false;
+	   }
+	
+	}
+
+	return true;
 }
 
-SOCKET Socket::GetSocket()  
+SOCKET Socket::GetSocket() const
 {
     return m_socket;
 }
 
+char* Socket::GetAddress() const
+{
+	PSTR ipBuffer[16];  
+	inet_ntop(AF_INET,&m_addr, *ipBuffer, sizeof(ipBuffer));
+	return *ipBuffer;
+}
 
-///*
-// * StartListener takes in an ip address and a port as a string (not integer!), retrieves the local address info
-// * (required to fill the expected addrinfo struct) then creates the socket with the ip:port combo and binds.
-// * If false is returned at all from this function then the listener was unsuccessful and the program should be
-// * exitted gracefully. Check the error messages.
-// */
-//bool Socket::ListenerSetup( std::string sPort, char buffer[], int bufferLength)
-//{
-//	if (!wsaInitialised)
-//	{
-//		if (!WSAInit())
-//		{
-//			printf("WSA init failed, exiting.\n");
-//		}
-//	}
-//	struct addrinfo* addrInfoResult = NULL;
-//	if(!WSAInit() 
-//		|| (!GetListenAddrInfo(sPort, addrInfoResult)) 
-//	    || (!CreateSocket(addrInfoResult)) 
-//		|| (!BindSocket(addrInfoResult))
-//		)
-//	{ return false; }
-//	
-//	ListenOnSocket();
-//	
-//	printf("Now Listening....\n ");
-//
-//	while(true) 
-//	{
-//		AcceptIncomingConnection();
-//		ReceiveData(buffer, bufferLength);
-//
-//	}
-//
-//	freeaddrinfo(addrInfoResult);
-//	// At this point m_listenSock is bound and listening on the requested interface
-//	return true;
-//
-//}
-//
-//bool Socket::CreateSocket(addrinfo* addrInfo)
-//{
-//	if (!wsaInitialised)
-//	{
-//		if (!WSAInit())
-//		{
-//			printf("WSA init failed, exiting.\n");
-//		}
-//	}
-//
-//	int result = setsockopt(m_listenSock, SOL_SOCKET, SO_REUSEADDR, (char *)true, sizeof(true));
-//
-//	if (result == SOCKET_ERROR)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//
-//	m_listenSock = socket(addrInfo->ai_family, addrInfo->ai_socktype, addrInfo->ai_protocol);
-//
-//	if (m_listenSock == INVALID_SOCKET)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//	return true;
-//}
-//
-//bool Socket::BindSocket(addrinfo* addrInfoResult)
-//{
-//	addrinfo* addrIterator = NULL;
-//	int result = 0;
-//
-//	for (addrIterator = addrInfoResult; addrIterator != NULL; addrIterator = addrIterator->ai_next)
-//	{
-//		m_listenSock = socket(addrIterator->ai_family, addrIterator->ai_socktype, addrIterator->ai_protocol);
-//
-//		if (m_listenSock == INVALID_SOCKET)
-//		{
-//			continue;
-//		}
-//
-//		result = setsockopt(m_listenSock, SOL_SOCKET, SO_REUSEADDR, (char *)true, sizeof(true));
-//		if (result == SOCKET_ERROR)
-//		{
-//			DWORD dw_error = (DWORD)WSAGetLastError();
-//			GetErrorMessage(dw_error);
-//			return false;
-//		}
-//
-//		result = bind(m_listenSock, addrInfoResult->ai_addr, (int)addrInfoResult->ai_addrlen);
-//		
-//		if (result == SOCKET_ERROR)
-//		{
-//			continue;
-//		}
-//		
-//		// If the control flow gets to here it we should have successfully bound an address
-//		break;
-//	}
-//
-//	return true;
-//}
-//
-//bool Socket::ListenOnSocket()
-//{
-//	int result = listen(m_listenSock, SOMAXCONN);
-//
-//	if (result == SOCKET_ERROR)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//	return true;
-//}
-//
-//bool Socket::ConnectToHost(std::string p_targetIp, std::string p_targetPort)
-//{
-//	struct addrinfo* addrInfoResult = NULL;
-//	if ( (!WSAInit()) || (!CreateSocket(addrInfoResult)) )
-//	{
-//		printf("Could not connect to server.\n");
-//		freeaddrinfo(addrInfoResult);
-//		return false;
-//	}
-//
-//	freeaddrinfo(addrInfoResult);
-//	// At this point m_listenSock is bound and listening on the requested interface
-//	return true;
-//}
-//
-//bool Socket::AcceptIncomingConnection()
-//{
-//
-//	int result = accept(m_listenSock, NULL, NULL);
-//
-//	if (result == SOCKET_ERROR)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//	return true;
-//}
-//
-//bool Socket::Send(char sendBuffer[], int sendBufferLength)
-//{
-//	int result = send(m_listenSock, sendBuffer, sendBufferLength, 0);
-//
-//	if (result == SOCKET_ERROR)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//	return true;
-//}
-//
-//void Socket::ReceiveData(char receiveBuffer[], int bufferLength)
-//{
-//	int result = 0;
-//	do {
-//
-//        result = recv(m_listenSock, receiveBuffer, bufferLength, 0);
-//        if (result > 0) {
-//            printf("Bytes received: %d\n", result);
-//
-//        // Echo the buffer to the console
-//		printf("MESSAGE: %s\n", receiveBuffer);
-//        }
-//        else if (result == 0)
-//            printf("Connection closing...\n");
-//        else  {
-//			DWORD dw_error = (DWORD)WSAGetLastError();
-//			GetErrorMessage(dw_error);
-//        }
-//
-//    } while (result > 0);
-//}
-//
-//bool Socket::Disconnect()
-//{
-//	int result = shutdown(m_listenSock, SD_SEND);
-//    if (result == SOCKET_ERROR) {
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//        return false;
-//    }
-//	return true;
-//}
-//
-//// For servers 
-//bool Socket::GetListenAddrInfo( std::string sPort, struct addrinfo* addrInfoResult)
-//{
-//	int result;
-//	struct addrinfo hints;
-//	struct addrinfo* iter;
-//    
-//	ZeroMemory(&hints, sizeof(hints));
-//    hints.ai_family = AF_INET;
-//    hints.ai_socktype = SOCK_STREAM;
-//    hints.ai_flags = AI_PASSIVE;
-//
-//	result = getaddrinfo(NULL, sPort.c_str(), &hints, &addrInfoResult);
-//
-//	if (result != 0)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//	return true;
-//
-//}
-//
-//// For Clients
-//bool Socket::GetTargetAddrInfo( std::string ipAddr, std::string sPort, struct addrinfo* addrInfoResult)
-//{
-//	int result;
-//	struct addrinfo hints;
-//    
-//	ZeroMemory(&hints, sizeof(hints));
-//    hints.ai_family = AF_INET;
-//    hints.ai_socktype = SOCK_STREAM;
-//    hints.ai_protocol = IPPROTO_TCP;
-//
-//	result = getaddrinfo(ipAddr.c_str(), sPort.c_str(), &hints, &addrInfoResult);
-//
-//	if (result != 0)
-//	{
-//		DWORD dw_error = (DWORD)WSAGetLastError();
-//		GetErrorMessage(dw_error);
-//		return false;
-//	}
-//
-//	return true;
-//
-//
-//}
+CredHandle* Socket::GetCredHandle()
+{
+	return &m_credHandle;
+}
+

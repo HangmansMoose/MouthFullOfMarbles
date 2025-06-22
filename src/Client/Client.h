@@ -10,5 +10,5 @@ private:
 public:
 	Client(const char* serverIp, int port);
 	~Client() = default;
-	void EnterChat();
+	void Chat();
 }; 
